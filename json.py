@@ -3,10 +3,17 @@
 def has_six_chars(c):
     return c == '[' or c == '{' or c == ']' or c == '}' or c == ':' or c == ','
 
+class MyError(Exception):
+    def __init__(self):
+        pass
+
 class JsonParser:
     _data = dict()
 
     def __init__(self):
+        pass
+
+    def my_error(self):
         pass
 
     def handle_whitespace(self, s):
@@ -16,30 +23,13 @@ class JsonParser:
                 new_s = new_s.rstrip()
                 new_s += c
             elif c.isspace():
-                if len(new_s) == 0 or has_six_chars(new_s[len(new_s) - 1]) is not True:
+                if len(new_s) == 0 or has_six_chars(new_s[-1]) is not True:
                     new_s += c
             else:
                 new_s += c
         return new_s
 
-    def is_string(s):
-        return len(s) >= 2 and s[0] == '\"' and s[len(s) - 1] == '\"' and s[len(s) - 2] != '\\'
-
-    def is_number(s):
-        test = 0
-        try:
-            test = float(s)
-            return True
-        except:
-            return False
-
-    def is_object(s):
-    def is_array(s):
-
-    def is_value(s):
-        return is_object(s) or is_array(s) or is_number(s) or is_string(s) or s == 'null' or s == 'true' or s == 'false'
-
-    def parser_number(s):
+    def parser_number(self, s):
         res = 0
         try:
             res = float(s)
@@ -51,40 +41,113 @@ class JsonParser:
         except:
             print('number error')
 
-    def parser_array(s):
+    def parser_array(self, s):
+        pass
 
-    def parser_value(s):
-        if s == 'null':
-            return None
-        elif s == 'true':
-            return True
-        elif s == 'false':
-            return False
-        elif is_string(s):
-            return s
-        elif is_number(s):
-            return parser_number(s)
-        elif is_object(s):
-            return parser_object(s)
-        elif is_array(s):
-            return parser_array(s)
-        elif
-            raise my_error
+    def parser_object(self, s):
+        try:
+            sum_length = len(s)
+            if sum_length < 2 or s[0] != '{' or s[-1] != '}':
+                raise MyError
+            temp_dict = dict()
+            temp_key = str()
+            handle_key = True
+            single_finished = False
+            half_finished = False
+            index = 1
+            pre_char = None
+            while index < sum_length - 1:
+                if s[index] == '{':
+                    if pre_char != ':':
+                        raise  MyError
+                    temp_index = index + 1
+                    count_bracket = 0
+                    while temp_index < (sum_length - 1):
+                        if s[temp_index] == '{':
+                            count_bracket = count_bracket + 1
+                        elif s[temp_index] == '}':
+                            if count_bracket == 0:
+                                break
+                            else:
+                                count_bracket = count_bracket - 1
+                    if temp_index == (sum_length - 1):
+                        raise MyError
+                    else:
+                        temp_dict[temp_key] = self.parser_object(s[index:temp_index + 1])
+                        index = temp_index + 1
+                        single_finished = True
+                elif s[index] == '[':
+                    if pre_char != ':':
+                        raise  MyError
+                    temp_index = index + 1
+                    count_bracket = 0
+                    while temp_index < (sum_length - 1):
+                        if s[temp_index] == '[':
+                            count_bracket = count_bracket + 1
+                        elif s[temp_index] == ']':
+                            if count_bracket == 0:
+                                break
+                            else:
+                                count_bracket = count_bracket - 1
+                    if temp_index == (sum_length - 1):
+                        raise MyError
+                    else:
+                        temp_dict[temp_key] = self.parser_object(s[index:temp_index + 1])
+                        index = temp_index + 1
+                        single_finished = True
+                elif s[index] == '"':
+                    if pre_char != ',' or index != 1 or pre_char != ':':
+                        raise MyError
+                    temp_index = index + 1
+                    while temp_index < (sum_length - 1) and s[temp_index] != '"':
+                        temp_index = temp_index + 1
+                    if temp_index == (sum_length - 1):
+                        raise MyError
+                    else:
+                        if handle_key:
+                            temp_key = s[index:temp_index + 1]
+                            half_finished = True
+                        else:
+                            temp_dict[temp_key] = s[index:temp_index + 1]
+                            single_finished = True
+                        index = temp_index + 1
+                elif s[index] == ',':
+                    if not single_finished:
+                        raise MyError
+                    handle_key = True
+                    pre_char = ','
+                elif s[index] == ':':
+                    if not half_finished:
+                        raise MyError
+                    pre_char = ':'
+                    handle_key = False
+                elif s[index] == 't':
+                    pass
+                elif s[index] == 'f':
+                    pass
+                elif s[index] == 'n':
+                    pass
+                elif (s[index] >= '0' and s[index] <= '9') or s[index] =='-':
+                    if pre_char != ',' or index != 1:
+                        raise MyError
+                    temp_index = index + 1
+                    while temp_index < (sum_length - 1) and (s[temp_index] != ',' and s[temp_index] != '}'):
+                        temp_index = temp_index + 1
+                    if temp_index == (sum_length - 1):
+                        raise MyError
+                    else:
+                        temp_dict[temp_key] = self.parser_number(s[index])
+                        index = temp_index + 1
 
-    def parser_object(s):
-        length = len(s)
-        i = 0
-        can_space = True
-        while i < length:
-            if can_space and s[i] == ' ':
-                continue
+
 
     def main_parser(self, s):
-        s = handle_whitespace(s)
+        s = self.handle_whitespace(s)
         try:
-            return parser_object(s)
+            return self.parser_object(s)
         except:
-            raise my_error
+            raise MyError
+
 
     def loads(self, s):
         pass
