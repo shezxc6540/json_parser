@@ -1,18 +1,19 @@
 
+
+def has_six_chars(c):
+    return c == '[' or c == '{' or c == ']' or c == '}' or c == ':' or c == ','
+
 class JsonParser:
     _data = dict()
 
     def __init__(self):
         pass
 
-    def has_six_chars(self, c):
-        return c == '[' or c == '{' or c == ']' or c == '}' or c == ':' or c == ','
-
     def handle_whitespace(self, s):
         new_s = ''
         for c in s:
             if has_six_chars(c):
-                new_s = rstrip(new_s)
+                new_s = new_s.rstrip()
                 new_s += c
             elif c.isspace():
                 if len(new_s) == 0 or has_six_chars(new_s[len(new_s) - 1]) is not True:
