@@ -8,15 +8,17 @@ class JsonParser:
 
     def __init__(self):
         pass
+    def has_six_chars(self, c):
+        return c == '[' or c == '{' or c ==']' or c == '}' or c == ':' or c == ','
 
     def handle_whitespace(self, s):
         new_s = ''
         for c in s:
-            if has_six_chars(c):
+            if self.has_six_chars(c):
                 new_s = new_s.rstrip()
                 new_s += c
             elif c.isspace():
-                if len(new_s) == 0 or has_six_chars(new_s[-1]) is not True:
+                if len(new_s) == 0 or self.has_six_chars(new_s[-1]) is not True:
                     new_s += c
             else:
                 new_s += c
@@ -85,7 +87,7 @@ class JsonParser:
             if len(s) >= 5 and s[1:5] == 'alse':
                 return False, s[5:]
         elif s[0] == 'n':
-            if len(s) >= 4 and s[1:4] = 'ull':
+            if len(s) >= 4 and s[1:4] == 'ull':
                 return None, s[4:]
         elif (s[0] >= '0' and s[0] <= '9') or s[0] =='-':
             if(s[0] == '0' and len(s) > 1):
@@ -122,8 +124,8 @@ class JsonParser:
                 temp_value, s = self.parser_value(s[1:])
                 temp_list.append(temp_value)
                 if len(s) > 1 and s[0] == ',':
-                    s = s[1:]
-                elif s == '}':
+                    continue
+                elif s == ']':
                     return temp_list
                 else:
                     raise MyError
@@ -140,9 +142,9 @@ class JsonParser:
             while True:
                 temp_key, s = self.parser_string(s[1:])
                 if s[0] == ':' and len(s) > 1:
-                    temp_dict[temp_key], s = self.dump_value(s[1:])
+                    temp_dict[temp_key], s = self.parser_value(s[1:])
                     if s[0] == ',' and len(s) > 1:
-                        s = s[1:]
+                        continue
                     elif s == '}':
                         return temp_dict
                     else:
@@ -190,7 +192,7 @@ class JsonParser:
     def loads(self, s):
         s = self.handle_whitespace(s)
         try:
-            _data = self.parser_object(s)
+            self._data = self.parser_object(s)
         except:
             raise MyError
 
@@ -217,3 +219,9 @@ class JsonParser:
 
     def load_dict(self, d):
         _data = d
+
+if __name__ == '__main__':
+    test_json = JsonParser()
+    test_json.load_file('test.txt')
+    print test_json._data
+    print test_json.dumps()
