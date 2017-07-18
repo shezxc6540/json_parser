@@ -40,6 +40,16 @@ class JsonParser(object):
         返回True或False'''
         return c in ('{', '[', '}', ']', ',', ':')
 
+    def is_sixteen_digit(self, c):
+        if c >= '0' and c <= '9':
+            return True
+        elif c >= 'a' and c <= 'f':
+            return True
+        elif c >= 'A' and c <= 'F':
+            return True
+        else:
+            return False
+
     def handle_whitespace(self, s):
         '''对于输入的一个字符串，将允许去除的空格全部去掉，以便于下一步操作。
 
@@ -58,16 +68,6 @@ class JsonParser(object):
             else:
                 new_s += c
         return new_s
-
-    def is_sixteen_digit(self, c):
-        if c >= '0' and c <= '9':
-            return True
-        elif c >= 'a' and c <= 'f':
-            return True
-        elif c >= 'A' and c <= 'F':
-            return True
-        else:
-            return False
 
     def parser_string(self, s):
         '''解析Json字符串中的string形式。
@@ -92,7 +92,7 @@ class JsonParser(object):
                     new_s += '\f'
                 elif s[temp_index] == 'b':
                     new_s += '\b'
-                elif s[temp_index] in ('/', '"'):
+                elif s[temp_index] in ('/', '"', '\\'):
                     new_s += s[temp_index]
                 elif s[temp_index] == 'u':
                     if (temp_index + 4) < len(s) and self.is_sixteen_digit(s[temp_index + 1]) and self.is_sixteen_digit(s[temp_index + 2]) and self.is_sixteen_digit(s[temp_index + 3]) and self.is_sixteen_digit(s[temp_index + 4]):
@@ -249,7 +249,30 @@ class JsonParser(object):
         '''将str类型转换为Json字符串中带双引号的string
 
         '''
-        return unicode('"' + s + '"')
+        new_s = '"'
+        for i in s:
+            if i in ('"', '\\'):
+                new_s += '\\'
+                new_s += i
+            elif i == '\b':
+                new_s += '\\'
+                new_s += 'b'
+            elif i == '\f':
+                new_s += '\\'
+                new_s += 'f'
+            elif i == '\n':
+                new_s += '\\'
+                new_s += 'n'
+            elif i == '\r':
+                new_s += '\\'
+                new_s += 'r'
+            elif i == '\t':
+                new_s += '\\'
+                new_s += 't'
+            else:
+                new_s += i
+        new_s += '"'
+        return unicode(new_s)
 
     def dump_value(self, v):
         '''判断v对应的类型是什么，转换为对应的类型或值
@@ -260,15 +283,15 @@ class JsonParser(object):
         elif isinstance(v, list):
             return self.dump_array(v)
         elif isinstance(v, float) or isinstance(v, int):
-            return unicode(v)
-        elif isinstance(v, str):
+            return str(v)
+        elif isinstance(v, unicode):
             return self.dump_string(v)
-        elif isinstance(v, None):
-            return u'null'
+        elif v is None:
+            return 'null'
         elif v is False:
-            return u'false'
+            return 'false'
         elif v is True:
-            return u'true'
+            return 'true'
 
     def dump_array(self, l):
         '''将list转换为Json字符串中的array类型。
@@ -280,7 +303,7 @@ class JsonParser(object):
         for it in l:
             temp_str += self.dump_value(it)
             temp_str += ','
-        return unicode(temp_str[:-1] + ']')
+        return temp_str[:-1] + ']'
 
     def dump_object(self, d):
         '''将dict转换为Json字符串中的object类型。
@@ -294,7 +317,36 @@ class JsonParser(object):
             temp_str += ':'
             temp_str += self.dump_value(v)
             temp_str += ','
-        return unicode(temp_str[:-1] + '}')
+        return temp_str[:-1] + '}'
+
+    def deep_copy_value(self, v):
+        '''对于value进行深拷贝。
+
+        dict和list类型需要深拷贝，其余直接返回。'''
+        if isinstance(v, dict):
+            return self.deep_copy_dict(v)
+        elif isinstance(v, list):
+            return self.deep_copy_list(v)
+        else:
+            return v
+
+    def deep_copy_list(self, l):
+        '''对于list进行深拷贝。
+
+        list中包含很多个value，进行递归。'''
+        new_l = list()
+        for i in l:
+            new_l.append(self.deep_copy_value(i))
+        return new_l
+
+    def deep_copy_dict(self, d):
+        '''对dict进行深拷贝。
+
+        key一定为str，value进行递归'''
+        new_d = dict()
+        for k, v in d.iteritems():
+            new_d[k] = self.deep_copy_value(v)
+        return new_d
 
     def loads(self, s):
         '''读取JSON格式数据，输入s为一个JSON字符串，无返回值。
@@ -335,35 +387,6 @@ class JsonParser(object):
             print("File write error!")
         finally:
             out1.close()
-
-    def deep_copy_value(self, v):
-        '''对于value进行深拷贝。
-
-        dict和list类型需要深拷贝，其余直接返回。'''
-        if isinstance(v, dict):
-            return self.deep_copy_dict(v)
-        elif isinstance(v, list):
-            return self.deep_copy_list(v)
-        else:
-            return v
-
-    def deep_copy_list(self, l):
-        '''对于list进行深拷贝。
-
-        list中包含很多个value，进行递归。'''
-        new_l = list()
-        for i in l:
-            new_l.append(self.deep_copy_value(i))
-        return new_l
-
-    def deep_copy_dict(self, d):
-        '''对dict进行深拷贝。
-
-        key一定为str，value进行递归'''
-        new_d = dict()
-        for k, v in d.iteritems():
-            new_d[k] = self.deep_copy_value(v)
-        return new_d
 
     def load_dict(self, d):
         '''从dict中读取数据，存入实例中，若遇到不是字符串的key则忽略。
