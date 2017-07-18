@@ -250,27 +250,30 @@ class JsonParser(object):
 
         '''
         new_s = '"'
-        for i in s:
-            if i in ('"', '\\'):
+        for i in range(0, len(s)):
+            if s[i] == '"':
                 new_s += '\\'
-                new_s += i
-            elif i == '\b':
+                new_s += s[i]
+            elif s[i] == '\b':
                 new_s += '\\'
                 new_s += 'b'
-            elif i == '\f':
+            elif s[i] == '\f':
                 new_s += '\\'
                 new_s += 'f'
-            elif i == '\n':
+            elif s[i] == '\n':
                 new_s += '\\'
                 new_s += 'n'
-            elif i == '\r':
+            elif s[i] == '\r':
                 new_s += '\\'
                 new_s += 'r'
-            elif i == '\t':
+            elif s[i] == '\t':
                 new_s += '\\'
                 new_s += 't'
+            elif s[i] == '\\' and s[i + 1] != 'u':
+                new_s += '\\'
+                new_s += s[i]
             else:
-                new_s += i
+                new_s += s[i]
         new_s += '"'
         return unicode(new_s)
 
@@ -278,20 +281,23 @@ class JsonParser(object):
         '''判断v对应的类型是什么，转换为对应的类型或值
 
         '''
-        if isinstance(v, dict):
+        if isinstance(v, bool):
+            if v:
+                return 'true'
+            else:
+                return 'false'
+        elif isinstance(v, dict):
             return self.dump_object(v)
         elif isinstance(v, list):
             return self.dump_array(v)
         elif isinstance(v, float) or isinstance(v, int):
             return str(v)
-        elif isinstance(v, unicode):
+        elif isinstance(v, unicode) or isinstance(v, str):
             return self.dump_string(v)
         elif v is None:
             return 'null'
-        elif v is False:
-            return 'false'
-        elif v is True:
-            return 'true'
+        else:
+            print type(v)
 
     def dump_array(self, l):
         '''将list转换为Json字符串中的array类型。
