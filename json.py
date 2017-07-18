@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+
 class ParserError(Exception):
     '''自定义异常类。
 
@@ -9,9 +10,11 @@ class ParserError(Exception):
         Exception.__init__(self)
         self.error_type = error_type
 
+
 class DumpError(Exception):
     def __init__(self):
         Exception.__init__(self)
+
 
 class JsonParser(object):
     '''Json解析类。
@@ -56,6 +59,16 @@ class JsonParser(object):
                 new_s += c
         return new_s
 
+    def is_sixteen_digit(self, c):
+        if c >= '0' and c <= '9':
+            return True
+        elif c >= 'a' and c <= 'f':
+            return True
+        elif c >= 'A' and c <= 'F':
+            return True
+        else:
+            return False
+
     def parser_string(self, s):
         '''解析Json字符串中的string形式。
 
@@ -63,12 +76,39 @@ class JsonParser(object):
         if s[0] != '"':
             raise ParserError('string')
         temp_index = 1
+        new_s = ''
         while temp_index < len(s) and s[temp_index] != '"':
+            if s[temp_index] == '\\':
+                temp_index += 1
+                if temp_index == len(s):
+                    raise ParserError('string')
+                if s[temp_index] == 't':
+                    new_s += '\t'
+                elif s[temp_index] == 'r':
+                    new_s += '\r'
+                elif s[temp_index] == 'n':
+                    new_s += '\n'
+                elif s[temp_index] == 'f':
+                    new_s += '\f'
+                elif s[temp_index] == 'b':
+                    new_s += '\b'
+                elif s[temp_index] in ('/', '"'):
+                    new_s += s[temp_index]
+                elif s[temp_index] == 'u':
+                    if (temp_index + 4) < len(s) and self.is_sixteen_digit(s[temp_index + 1]) and self.is_sixteen_digit(s[temp_index + 2]) and self.is_sixteen_digit(s[temp_index + 3]) and self.is_sixteen_digit(s[temp_index + 4]):
+                        new_s += s[temp_index - 1:temp_index + 5]
+                        temp_index += 4
+                    else:
+                        raise ParserError('string')
+                else:
+                    raise ParserError('string')
+            else:
+                new_s += s[temp_index]
             temp_index += 1
         if temp_index == len(s):
             raise ParserError('string')
         else:
-            return s[1:temp_index], s[temp_index + 1:]
+            return unicode(new_s), s[temp_index + 1:]
 
     def parser_value(self, s):
         '''解析Json字符串中的value类型。
@@ -209,7 +249,7 @@ class JsonParser(object):
         '''将str类型转换为Json字符串中带双引号的string
 
         '''
-        return '"' + s + '"'
+        return unicode('"' + s + '"')
 
     def dump_value(self, v):
         '''判断v对应的类型是什么，转换为对应的类型或值
@@ -220,41 +260,41 @@ class JsonParser(object):
         elif isinstance(v, list):
             return self.dump_array(v)
         elif isinstance(v, float) or isinstance(v, int):
-            return str(v)
+            return unicode(v)
         elif isinstance(v, str):
             return self.dump_string(v)
         elif isinstance(v, None):
-            return 'null'
+            return u'null'
         elif v is False:
-            return 'false'
+            return u'false'
         elif v is True:
-            return 'true'
+            return u'true'
 
     def dump_array(self, l):
         '''将list转换为Json字符串中的array类型。
 
         注意空list的特殊处理。'''
         if len(l) == 0:
-            return '[]'
+            return u'[]'
         temp_str = '['
         for it in l:
             temp_str += self.dump_value(it)
             temp_str += ','
-        return temp_str[:-1] + ']'
+        return unicode(temp_str[:-1] + ']')
 
     def dump_object(self, d):
         '''将dict转换为Json字符串中的object类型。
 
         注意空dict的特殊处理。'''
         if len(d) == 0:
-            return '{}'
+            return u'{}'
         temp_str = '{'
         for k,v in d.iteritems():
             temp_str += self.dump_string(k)
             temp_str += ':'
             temp_str += self.dump_value(v)
             temp_str += ','
-        return temp_str[:-1] + '}'
+        return unicode(temp_str[:-1] + '}')
 
     def loads(self, s):
         '''读取JSON格式数据，输入s为一个JSON字符串，无返回值。
@@ -283,7 +323,6 @@ class JsonParser(object):
                 self.loads(json_str)
         except IOError:
             print("File read error!")
-
 
     def dump_file(self, f):
         '''将实例中的内容以JSON格式存入文件。
@@ -366,7 +405,3 @@ class JsonParser(object):
         for k, v in d.iteritems():
             if isinstance(k, str):
                 self._data[k] = self.deep_copy_value(v)
-
-if __name__ == '__main__':
-    test_json = JsonParser()
-    test_json.load_file('test.txt')
