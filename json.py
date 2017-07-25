@@ -2,31 +2,117 @@
 # -*- coding: utf-8 -*-
 
 
-class ParserError(Exception):
-    '''自定义异常类。
+class JsonError(Exception):
+    def __init__(self):
+        pass
 
-    在解析Json字符串遇到错误时抛出该异常'''
+
+class ParserError(JsonParser):
+    """自定义异常类。
+
+    在解析Json字符串遇到错误时抛出该异常"""
     def __init__(self, error_type):
         Exception.__init__(self)
         self.error_type = error_type
 
 
-class DumpError(Exception):
+class DumpError(JsonParser):
     def __init__(self):
-        Exception.__init__(self)
+        pass
 
 
 class JsonParser(object):
-    '''Json解析类。
+    """Json解析类。
 
-    可用于Json字符串与Python字典的相互转换'''
+    可用于Json字符串与Python字典的相互转换"""
     def __init__(self):
         self._data = dict()
 
-    def is_digit(self, s):
-        '''判断一个字符是否为合法数字中可能出现的字符。
+    def loads(self, s):
+        """读取JSON格式数据，输入s为一个JSON字符串，无返回值。
 
-        '''
+        若遇到JSON格式错误的应该抛出异常。为简便考虑，JSON的最外层假定只为Object"""
+        # 预处理字符串中的空格
+        s = self.handle_whitespace(s)
+        try:
+            self._data = self.parser_object(s)
+        except ParserError as pe:
+            print("Parser Error! Expecting: " + pe.error_type)
+
+    def dumps(self):
+        """将实例中的内容转成JSON格式返回。
+
+        """
+        return self.dump_object(self._data)
+
+    def load_file(self, f):
+        """从文件中读取JSON格式数据，f为文件路径。
+
+        Json解析时异常处理，文件操作失败抛出异常"""
+        try:
+            with open(f, "r") as read_json:
+                json_str = read_json.read()
+                self.loads(json_str)
+        except IOError:
+            print("File read error!")
+
+    def dump_file(self, f):
+        """将实例中的内容以JSON格式存入文件。
+
+        文件若存在则覆盖，文件操作失败抛出异常"""
+        try:
+            out1 = open(f, "w")
+            out1.write(self.dumps())
+        except IOError:
+            print("File write error!")
+        finally:
+            out1.close()
+
+    def load_dict(self, d):
+        """从dict中读取数据，存入实例中，若遇到不是字符串的key则忽略。
+
+        """
+        self._data = dict()
+        for k, v in d.iteritems():
+            if isinstance(k, str):
+                self._data[k] = self.deep_copy_value(v)
+
+    def dump_dict(self):
+        """返回一个字典，包含实例中的内容。
+
+        """
+        return self.deep_copy_dict(self._data)
+
+    def __getitem__(self, key):
+        """重写__getitem__方法。
+
+        """
+        return self._data[key]
+
+    def __setitem__(self, key, value):
+        """重写__setitem__方法。
+
+        """
+        try:
+            if isinstance(key, str):
+                self._data[key] = value
+            else:
+                raise DumpError
+        except DumpError:
+            print("Dump Error!")
+
+    def update(self, d):
+        """用字典d更新实例中的数据，类似于字典的update。
+
+        """
+        for k, v in d.iteritems():
+            if isinstance(k, str):
+                self._data[k] = self.deep_copy_value(v)
+
+    def is_digit(self, s):
+        """判断一个字符是否为合法数字中可能出现的字符。
+
+        """
         if s[0] >= '0' and s[0] <= '9':
             return True
         elif s[0] in ('e', 'E', '+', '-', '.'):
@@ -35,9 +121,9 @@ class JsonParser(object):
             return False
 
     def has_six_chars(self, c):
-        '''检验字符c是否为两边允许出现空格的字符。
+        """检验字符c是否为两边允许出现空格的字符。
 
-        返回True或False'''
+        返回True或False"""
         return c in ('{', '[', '}', ']', ',', ':')
 
     def is_sixteen_digit(self, c):
@@ -51,11 +137,11 @@ class JsonParser(object):
             return False
 
     def handle_whitespace(self, s):
-        '''对于输入的一个字符串，将允许去除的空格全部去掉，以便于下一步操作。
+        """对于输入的一个字符串，将允许去除的空格全部去掉，以便于下一步操作。
 
         初始化一个新串，遍历旧串， 如果是空格，查看新串末尾是否为允许前后出现空
         格字符，如果是，则不加空格到新串中；如果是允许前后出现空格字符，则把新串
-        末尾的空格都去除掉；如果为其他，则直接加入新串中。'''
+        末尾的空格都去除掉；如果为其他，则直接加入新串中。"""
         new_s = ''   # new string
         for c in s:
             if self.has_six_chars(c):
@@ -70,9 +156,9 @@ class JsonParser(object):
         return new_s
 
     def parser_string(self, s):
-        '''解析Json字符串中的string形式。
+        """解析Json字符串中的string形式。
 
-        返回为Python中的str类型，出现不是预期的情况时，则抛出异常。'''
+        返回为Python中的str类型，出现不是预期的情况时，则抛出异常。"""
         if s[0] != '"':
             raise ParserError('string')
         temp_index = 1
@@ -111,10 +197,10 @@ class JsonParser(object):
             return unicode(new_s), s[temp_index + 1:]
 
     def parser_value(self, s):
-        '''解析Json字符串中的value类型。
+        """解析Json字符串中的value类型。
 
         value类型包括string类型，object类型，array类型， number类型， 以及特殊的
-        null，true，false，进行分支判断。'''
+        null，true，false，进行分支判断。"""
 
         # 第一个字符为{，认为是object
         if s[0] == '{':
@@ -185,9 +271,9 @@ class JsonParser(object):
             raise ParserError('value')
 
     def parser_number(self, s):
-        '''解析Json字符串中的number类型
+        """解析Json字符串中的number类型
 
-        利用int()和float()函数和try/except语法来判断是否出错和解析字符串。'''
+        利用int()和float()函数和try/except语法来判断是否出错和解析字符串。"""
         if (s[0] == '0' and len(s) > 1):
             raise ParserError('number')
         res = 0
@@ -204,9 +290,9 @@ class JsonParser(object):
                 raise ParserError('number')
 
     def parser_array(self, s):
-        '''解析Json字符串中的array类型。
+        """解析Json字符串中的array类型。
 
-        得到一个list。'''
+        得到一个list。"""
         if len(s) < 2 or s[0] != '[' or s[-1] != ']':
             raise ParserError('array')
         temp_list = list()
@@ -223,9 +309,9 @@ class JsonParser(object):
                 raise ParserError('array')
 
     def parser_object(self, s):
-        '''解析Json字符串中的object类型。
+        """解析Json字符串中的object类型。
 
-        得到一个dict。'''
+        得到一个dict。"""
         if len(s) < 2 or s[0] != '{' or s[-1] != '}':
             raise ParserError('object')
         temp_dict = dict()
@@ -246,9 +332,9 @@ class JsonParser(object):
                 raise ParserError('object')
 
     def dump_string(self, s):
-        '''将str类型转换为Json字符串中带双引号的string
+        """将str类型转换为Json字符串中带双引号的string
 
-        '''
+        """
         new_s = '"'
         for i in range(0, len(s)):
             if s[i] == '"':
@@ -278,9 +364,9 @@ class JsonParser(object):
         return unicode(new_s)
 
     def dump_value(self, v):
-        '''判断v对应的类型是什么，转换为对应的类型或值
+        """判断v对应的类型是什么，转换为对应的类型或值
 
-        '''
+        """
         if isinstance(v, bool):
             if v:
                 return 'true'
@@ -300,9 +386,9 @@ class JsonParser(object):
             print type(v)
 
     def dump_array(self, l):
-        '''将list转换为Json字符串中的array类型。
+        """将list转换为Json字符串中的array类型。
 
-        注意空list的特殊处理。'''
+        注意空list的特殊处理。"""
         if len(l) == 0:
             return u'[]'
         temp_str = '['
@@ -312,9 +398,9 @@ class JsonParser(object):
         return temp_str[:-1] + ']'
 
     def dump_object(self, d):
-        '''将dict转换为Json字符串中的object类型。
+        """将dict转换为Json字符串中的object类型。
 
-        注意空dict的特殊处理。'''
+        注意空dict的特殊处理。"""
         if len(d) == 0:
             return u'{}'
         temp_str = '{'
@@ -326,9 +412,9 @@ class JsonParser(object):
         return temp_str[:-1] + '}'
 
     def deep_copy_value(self, v):
-        '''对于value进行深拷贝。
+        """对于value进行深拷贝。
 
-        dict和list类型需要深拷贝，其余直接返回。'''
+        dict和list类型需要深拷贝，其余直接返回。"""
         if isinstance(v, dict):
             return self.deep_copy_dict(v)
         elif isinstance(v, list):
@@ -337,100 +423,19 @@ class JsonParser(object):
             return v
 
     def deep_copy_list(self, l):
-        '''对于list进行深拷贝。
+        """对于list进行深拷贝。
 
-        list中包含很多个value，进行递归。'''
+        list中包含很多个value，进行递归。"""
         new_l = list()
         for i in l:
             new_l.append(self.deep_copy_value(i))
         return new_l
 
     def deep_copy_dict(self, d):
-        '''对dict进行深拷贝。
+        """对dict进行深拷贝。
 
-        key一定为str，value进行递归'''
+        key一定为str，value进行递归"""
         new_d = dict()
         for k, v in d.iteritems():
             new_d[k] = self.deep_copy_value(v)
         return new_d
-
-    def loads(self, s):
-        '''读取JSON格式数据，输入s为一个JSON字符串，无返回值。
-
-        若遇到JSON格式错误的应该抛出异常。为简便考虑，JSON的最外层假定只为Object'''
-        # 预处理字符串中的空格
-        s = self.handle_whitespace(s)
-        try:
-            self._data = self.parser_object(s)
-        except ParserError as pe:
-            print("Parser Error! Expecting: " + pe.error_type)
-
-    def dumps(self):
-        '''将实例中的内容转成JSON格式返回。
-
-        '''
-        return self.dump_object(self._data)
-
-    def load_file(self, f):
-        '''从文件中读取JSON格式数据，f为文件路径。
-
-        Json解析时异常处理，文件操作失败抛出异常'''
-        try:
-            with open(f, "r") as read_json:
-                json_str = ''.join(read_json.readlines())
-                self.loads(json_str)
-        except IOError:
-            print("File read error!")
-
-    def dump_file(self, f):
-        '''将实例中的内容以JSON格式存入文件。
-
-        文件若存在则覆盖，文件操作失败抛出异常'''
-        try:
-            out1 = open(f, "w")
-            out1.write(self.dumps())
-        except IOError:
-            print("File write error!")
-        finally:
-            out1.close()
-
-    def load_dict(self, d):
-        '''从dict中读取数据，存入实例中，若遇到不是字符串的key则忽略。
-
-        '''
-        self._data = dict()
-        for k, v in d.iteritems():
-            if isinstance(k, str):
-                self._data[k] = self.deep_copy_value(v)
-
-    def dump_dict(self):
-        '''返回一个字典，包含实例中的内容。
-
-        '''
-        return self.deep_copy_dict(self._data)
-
-    def __getitem__(self, key):
-        '''重写__getitem__方法。
-
-        '''
-        return self._data[key]
-
-    def __setitem__(self, key, value):
-        '''重写__setitem__方法。
-
-        '''
-        try:
-            if isinstance(key, str):
-                self._data[key] = value
-            else:
-                raise DumpError
-        except DumpError:
-            print("Dump Error!")
-
-    def update(self, d):
-        '''用字典d更新实例中的数据，类似于字典的update。
-
-        '''
-        for k, v in d.iteritems():
-            if isinstance(k, str):
-                self._data[k] = self.deep_copy_value(v)
