@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-
 ACCEPTED_SPACE_CHARS = '{[}],:'
-ESCAPE_DIR_PARSER = {'t': '\t', 'r': '\r', 'n': '\n', 'f': '\f', 'b': '\b'}
+ESCAPE_DIR_PARSER = {'t': '\t', 'r': '\r', 'n': '\n', 'f': '\f', 'b': '\b',
+                     '/': '/', '"': '"', '\\': '\\'}
 ESCAPE_DIR_DUMP = {'"': '"', '\\': '\\', '/': '/', '\b': 'b', '\f': 'f', '\n': 'n',
                    '\r': 'r', '\t': 't'}
 LEGAL_DIGIT = '0123456789eE+-.'
@@ -42,7 +42,9 @@ class JsonParser(object):
         # 预处理字符串中的空格
         s = self.remove_space(s)
         try:
-            self._data = self.parser_object(s)
+            self._data, rest_s = self.parser_object(s)
+            if rest_s != '':
+                raise ParserError
         except ParserError as pe:
             print("Parser Error! Expecting: " + pe.error_type)
 
@@ -139,14 +141,14 @@ class JsonParser(object):
         temp_index = 1
         new_s = ''
         while temp_index < len(s) and s[temp_index] != '"':
+            # 出现反斜杠，说明有转义符或unicode
             if s[temp_index] == '\\':
+                # 看下一个字符是什么
                 temp_index += 1
                 if temp_index == len(s):
                     raise ParserError('string')
                 if s[temp_index] in ESCAPE_DIR_PARSER:
                     new_s += ESCAPE_DIR_PARSER[s[temp_index]]
-                elif s[temp_index] in ('/', '"', '\\'):
-                    new_s += s[temp_index]
                 elif s[temp_index] == 'u':
                     if (temp_index + 4) < len(s):
                         try:
@@ -174,40 +176,10 @@ class JsonParser(object):
 
         # 第一个字符为{，认为是object
         if s[0] == '{':
-            temp_index = 1
-            count_bracket = 0
-            # 找出与左括号相匹配的右括号的位置
-            while temp_index < len(s):
-                if s[temp_index] == '{':
-                    count_bracket += 1
-                elif s[temp_index] == '}':
-                    if count_bracket == 0:
-                        break
-                    else:
-                        count_bracket -= 1
-                temp_index += 1
-            if temp_index == len(s):
-                raise ParserError('object')
-            else:
-                return self.parser_object(s[:temp_index + 1]), s[temp_index + 1:]
+            return self.parser_object(s)
         # 第一个字符为[，认为是array
         elif s[0] == '[':
-            temp_index = 1
-            count_bracket = 0
-            # 找出与左括号相匹配的右括号的位置
-            while temp_index < len(s):
-                if s[temp_index] == '[':
-                    count_bracket += 1
-                elif s[temp_index] == ']':
-                    if count_bracket == 0:
-                        break
-                    else:
-                        count_bracket -= 1
-                temp_index += 1
-            if temp_index == len(s):
-                raise ParserError('array')
-            else:
-                return self.parser_array(s[:temp_index + 1]), s[temp_index + 1:]
+            return self.parser_array(s)
         # 第一个字符为"，认为是string
         elif s[0] == '"':
             return self.parser_string(s)
@@ -251,18 +223,18 @@ class JsonParser(object):
         """解析Json字符串中的array类型。
 
         得到一个list。"""
-        if len(s) < 2 or s[0] != '[' or s[-1] != ']':
+        if len(s) < 2 or s[0] != '[':
             raise ParserError('array')
         temp_list = list()
-        if s == '[]':
-            return temp_list
+        if s.startswith('[]'):
+            return temp_list, s[2:]
         while True:
             temp_value, s = self.parser_value(s[1:])
             temp_list.append(temp_value)
             if len(s) > 1 and s[0] == ',':
                 continue
-            elif s == ']':
-                return temp_list
+            elif s.startswith(']'):
+                return temp_list, s[1:]
             else:
                 raise ParserError('array')
 
@@ -270,19 +242,19 @@ class JsonParser(object):
         """解析Json字符串中的object类型。
 
         得到一个dict。"""
-        if len(s) < 2 or s[0] != '{' or s[-1] != '}':
+        if len(s) < 2 or s[0] != '{':
             raise ParserError('object')
         temp_dict = dict()
-        if s == '{}':
-            return temp_dict
+        if s.startswith('{}'):
+            return temp_dict, s[2:]
         while True:
             temp_key, s = self.parser_string(s[1:])
-            if s[0] == ':' and len(s) > 1:
+            if len(s) > 1 and s[0] == ':':
                 temp_dict[temp_key], s = self.parser_value(s[1:])
                 if len(s) > 1 and s[0] == ',':
                     continue
-                elif s == '}':
-                    return temp_dict
+                elif s.startswith('}'):
+                    return temp_dict, s[1:]
                 else:
                     raise ParserError('object')
             else:
@@ -330,7 +302,7 @@ class JsonParser(object):
         """将list转换为Json字符串中的array类型。
 
         注意空list的特殊处理。"""
-        return '[%s]' % (', '.join(map(self.dump_value, l)))
+        return unicode('[%s]' % (', '.join(map(self.dump_value, l))))
 
     def dump_object(self, d):
         """将dict转换为Json字符串中的object类型。
