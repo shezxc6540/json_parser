@@ -3,39 +3,39 @@
 import unittest
 
 from jsonparser import JsonParser
+from deepcopy_and_pre_fun import *
+from subdump_fun import *
+from subparser_fun import *
 from json import *
 
 
 class JsonParserTest(unittest.TestCase):
     def test_remove_space(self):
-        jp = JsonParser()
         ori = '{  "a ": 1, "":2 ,"3" : "\u1234" ,"4":["k","k1 "] }'
         tar = '{"a ":1,"":2,"3":"\u1234","4":["k","k1 "]}'
-        self.assertEqual(jp.remove_space(ori), tar)
+        self.assertEqual(remove_space(ori), tar)
 
     def test_parser_string(self):
-        jp = JsonParser()
         ori = '"1234","4":["k","k1 '
-        a, b = jp.parser_string(ori)
+        a, b = parser_string(ori)
         tar_a = '1234'
         tar_b = ',"4":["k","k1 '
         self.assertEqual(a, tar_a)
         self.assertEqual(b, tar_b)
 
     def test_parser_value(self):
-        jp = JsonParser()
         ori1 = '[[2,-3],4,7,20e1,3.14],'
         ori2 = '{"a":2},'
         ori3 = 'null,'
         ori4 = 'trueh'
         ori5 = 'falsee'
         tar11 = [[2, -3], 4, 7, 20e1, 3.14]
-        tar21 = {"a":2}
-        a1, b1 = jp.parser_value(ori1)
-        a2, b2 = jp.parser_value(ori2)
-        a3, b3 = jp.parser_value(ori3)
-        a4, b4 = jp.parser_value(ori4)
-        a5, b5 = jp.parser_value(ori5)
+        tar21 = {"a": 2}
+        a1, b1 = parser_value(ori1)
+        a2, b2 = parser_value(ori2)
+        a3, b3 = parser_value(ori3)
+        a4, b4 = parser_value(ori4)
+        a5, b5 = parser_value(ori5)
         self.assertEqual(tar11, a1)
         self.assertEqual(tar21, a2)
         self.assertIsNone(a3)
@@ -48,23 +48,20 @@ class JsonParserTest(unittest.TestCase):
         self.assertEqual('e', b5)
 
     def test_parser_number(self):
-        jp = JsonParser()
         ori = '-123.01E+1'
-        res = jp.parser_number(ori)
+        res = parser_number(ori)
         self.assertEqual(res, -123.01E1)
 
     def test_dump_value(self):
-        js = JsonParser()
         a = dict()
         a['\\\b\f\"abcd'] = [-12, 30, True, False, None]
-        res = js.dump_value(a)
+        res = dump_value(a)
         tar = r'{"\\\b\f\"abcd": [-12, 30, true, false, null]}'
         self.assertEqual(res, tar)
 
     def test_deep_copy(self):
-        js = JsonParser()
         a = [1, {"a": True}, None]
-        b = js.deep_copy_list(a)
+        b = deep_copy_list(a)
         self.assertEqual(a, b)
         self.assertIsNot(a, b)
 
@@ -131,7 +128,7 @@ class JsonParserTest(unittest.TestCase):
             self.assertEqual(json_std, js_str)
             jp_dict1 = jp.dump_dict()
             self.assertEqual(jp_dict1, d)
-            
+
             jp.dump_file('output.txt')
             jp.loads(js_str)   # a new dict from js_str
             jp_dict2 = jp.dump_dict()
@@ -150,7 +147,6 @@ class JsonParserTest(unittest.TestCase):
         jp_dict4 = jp1.dump_dict()
         self.assertEqual(jp1['a'], 1)
         jp1.update(jp_dict4)
-
 
 if __name__ == '__main__':
     unittest.main()
