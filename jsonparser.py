@@ -7,6 +7,8 @@ ESCAPE_DIR_PARSER = {'t': '\t', 'r': '\r', 'n': '\n', 'f': '\f', 'b': '\b'}
 ESCAPE_DIR_DUMP = {'"': '"', '\\': '\\', '/': '/', '\b': 'b', '\f': 'f', '\n': 'n',
                    '\r': 'r', '\t': 't'}
 LEGAL_DIGIT = '0123456789eE+-.'
+
+
 class JsonError(Exception):
     """自定义异常的基类"""
     def __init__(self):
@@ -271,14 +273,13 @@ class JsonParser(object):
         if len(s) < 2 or s[0] != '{' or s[-1] != '}':
             raise ParserError('object')
         temp_dict = dict()
-        temp_key = str()
         if s == '{}':
             return temp_dict
         while True:
             temp_key, s = self.parser_string(s[1:])
             if s[0] == ':' and len(s) > 1:
                 temp_dict[temp_key], s = self.parser_value(s[1:])
-                if s[0] == ',' and len(s) > 1:
+                if len(s) > 1 and s[0] == ',':
                     continue
                 elif s == '}':
                     return temp_dict
