@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import logging
+
 from deepcopy_and_pre_fun import *
 from subdump_fun import *
 from subparser_fun import *
@@ -10,6 +12,7 @@ class JsonParser(object):
 
     可用于Json字符串与Python字典的相互转换"""
     def __init__(self):
+        logging.basicConfig(filename='logger.log', level=logging.INFO)
         self._data = dict()
 
     def loads(self, s):
@@ -18,21 +21,28 @@ class JsonParser(object):
         若遇到JSON格式错误的应该抛出异常。为简便考虑，JSON的最外层假定只为Object"""
         # 预处理字符串中的空格
         s = remove_space(s)
+        logging.info("remove space successfully!")
         try:
             self._data, rest_s = parser_object(s)
             if rest_s != '':
                 raise ParserError
+            else:
+                logging.info("Load a json string successfully!")
         except ParserError as pe:
             print("Parser Error! Expecting: " + pe.error_type)
+            logging.error("Parser Error! Expecting: " + pe.error_type)
 
     def dumps(self):
         """将实例中的内容转成JSON格式返回。
 
         """
         try:
-            return dump_object(self._data)
+            temp = dump_object(self._data)
+            logging.info("Dump Successfully!")
+            return temp
         except DumpError:
             print("Dump Error!")
+            logging.error("Dump Error!")
 
     def load_file(self, f):
         """从文件中读取JSON格式数据，f为文件路径。
@@ -41,6 +51,7 @@ class JsonParser(object):
         with open(f, "r") as read_json:
             json_str = read_json.read()
             self.loads(json_str)
+            logging.info("Load File Successfully!")
 
     def dump_file(self, f):
         """将实例中的内容以JSON格式存入文件。
@@ -48,6 +59,7 @@ class JsonParser(object):
         文件若存在则覆盖，文件操作失败抛出异常"""
         with open(f, "w") as out1:
             out1.write(self.dumps())
+            logging.info("Dump File Successfully!")
 
     def load_dict(self, d):
         """从dict中读取数据，存入实例中，若遇到不是字符串的key则忽略。
@@ -57,12 +69,15 @@ class JsonParser(object):
         for k, v in d.iteritems():
             if isinstance(k, str):
                 self._data[k] = deep_copy_value(v)
+        logging.info("Load Dict Successfully!")
 
     def dump_dict(self):
         """返回一个字典，包含实例中的内容。
 
         """
-        return deep_copy_dict(self._data)
+        temp = deep_copy_dict(self._data)
+        logging.info("Dump Dict Successfully!")
+        return temp
 
     def __getitem__(self, key):
         """重写__getitem__方法。
@@ -81,6 +96,7 @@ class JsonParser(object):
                 raise DumpError
         except DumpError:
             print("Dump Error!")
+            logging.error("Dump Error!")
 
     def update(self, d):
         """用字典d更新实例中的数据，类似于字典的update。
@@ -89,3 +105,4 @@ class JsonParser(object):
         for k, v in d.iteritems():
             if isinstance(k, str):
                 self._data[k] = deep_copy_value(v)
+        logging.info("Update Successfully!")
