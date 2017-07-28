@@ -6,7 +6,6 @@ from jsonparser import JsonParser
 from deepcopy_and_pre_fun import *
 from subdump_fun import *
 from subparser_fun import *
-from json import *
 
 
 class JsonParserTest(unittest.TestCase):
@@ -119,15 +118,11 @@ class JsonParserTest(unittest.TestCase):
         ]
         for js in json_ok + json_ok2:
             js_str = js[0]
-            d = JSONDecoder().decode(js_str)
-            json_std = JSONEncoder().encode(d)
             jp = JsonParser()
             jp.loads(js_str)  # jp has a new dict
             # new dict transfers to js_str, it equals to the text after handling whitespaces
             js_str = jp.dumps()
-            self.assertEqual(json_std, js_str)
             jp_dict1 = jp.dump_dict()
-            self.assertEqual(jp_dict1, d)
 
             jp.dump_file('output.txt')
             jp.loads(js_str)   # a new dict from js_str
